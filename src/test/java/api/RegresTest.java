@@ -4,6 +4,7 @@ import io.restassured.http.ContentType;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.time.Clock;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -11,8 +12,10 @@ import static io.restassured.RestAssured.given;
 
 public class RegresTest {
     private final static String Url = "https://reqres.in/";
+
+    //GET
     @Test
-    public void checkAvatarAndIdTest(){
+    public void checkAvatarAndIdTest(){ //проверяем, что статус код другой, тест должен упасть
         Specifications.installSpecification(Specifications.requestSpec("https://reqres.in/"), Specifications.responseSpecError400());
         List<UserData> users = given()
                 .when()
@@ -42,6 +45,7 @@ public class RegresTest {
         }
     }
 
+    //POST
     @Test
     public void successRegTest(){
         Specifications.installSpecification(Specifications.requestSpec(Url), Specifications.responseSpec200());
@@ -73,4 +77,51 @@ public class RegresTest {
         Assert.assertEquals("Missing password", unSuccessReg.getError());
 
     }
+
+
+//GET
+    @Test
+    public void sortedYearsTest(){ //LIST<resourse>
+        Specifications.installSpecification(Specifications.requestSpec(Url), Specifications.responseSpec200());
+        List<ColorsData> colors = given()
+                .when()
+                .get("api/unknown")
+                .then().log().all()
+                .extract().body().jsonPath().getList("data", ColorsData.class);
+        List<Integer> years = colors.stream().map(ColorsData::getYear).collect(Collectors.toList()); //создаем список с годами
+        //еще один список, чтобы убедиться, что года отсортированы
+        List<Integer> sortedYears = years.stream().sorted().collect(Collectors.toList());
+        Assert.assertEquals(sortedYears,years); //сравниваем ожидаемый список с действительным
+        System.out.println(years);
+        System.out.println(sortedYears);
+    }
+
+    //DELETE
+    @Test
+    public void deleteUserTest(){
+        Specifications.installSpecification(Specifications.requestSpec(Url), Specifications.responseSpecUnique(204));
+        given()
+                .when()
+                .delete("api/users/2")
+                .then().log().all();
+
+    }
+
+//PUT
+    @Test
+    public void timeTest(){
+        Specifications.installSpecification(Specifications.requestSpec(Url), Specifications.responseSpec200());
+        UserTime user = new UserTime("morpheus", "zion resident");
+        UserTimeResponce responce = given()
+                .body(user)
+                .when()
+                .put("api/users/2")
+                .then().log().all()
+                .extract().as(UserTimeResponce.class);
+        String regex = "/(.{5})$";
+    String currentTime = Clock.systemUTC().instant().toString().replaceAll(regex,"");
+    Assert.assertEquals(currentTime, responce.getUpdateAt().replaceAll(regex,""));
+    }
+
+
 }
